@@ -57,6 +57,46 @@ def data_package(population, pop):
 
 
 # #############################################################
+# ######################## PSO-PCA  ###########################
+# #############################################################
+# 粒子群算法-主成分分析 单步更新
+def PSO_PCA(pop, pre_pop, evaluate, population, rate):
+    # pop种群的扰动完整数据 population 种群个体数目
+    # pre_pop 上一次迭代的种群数据 evaluate评估值
+    # rate 更新速率
+    n_component = 3  # 降阶次数
+    inertia_eff = 0.2  # 惯性参数
+    guide_eff = 0.5  # 寻优参数
+    random_eff = 0.1  # 布朗运动参数
+    pca = PCA(n_component)
+    pop_pca = pca.fit_transform(pop)
+    pre_pca = pca.transform(pre_pop)  # 上一步的粒子位置
+    velocity = pop_pca - pre_pca  # 获得速度向量组
+    rand = np.random.rand(population, n_component)
+    rand = rand - 0.5
+    best_ID = np.argmax(evaluate)  # 获得评估值最高的个体ID
+    for i in range(population):
+        if i != best_ID:
+            pop_pca[i] = pop_pca[i] + (pop_pca[best_ID] - pop_pca[i]) * rate * guide_eff + velocity[
+                i] * inertia_eff * rate + rand[i] * random_eff * rate
+        else:
+            pass
+    pop_reverse = pca.inverse_transform(pop_pca)
+    data = data_package(population, pop_reverse)
+    return data
+
+
+# #############################################################
+# ######################## GWO-PCA  ###########################
+# #############################################################
+# 灰狼算法 主成分分析
+
+# #############################################################
+# ######################## GA-PCA  ###########################
+# #############################################################
+# 遗传算法 主成分分析
+
+# #############################################################
 # #################### 简单的demo与测试 #########################
 # #############################################################
 # # 用于测试数据处理是否正常
@@ -75,3 +115,23 @@ def data_package(population, pop):
 # pop = generate(population, max_range)
 # print(pop)
 # print(pop.shape)
+
+# # PCA主成分分析 调用方法
+# pop = generate(3, 0.1)
+# n_component = 2  # 主成分降阶后次数
+# pca = PCA(n_component)
+# pop_pca = pca.fit_transform(pop)
+# pop_reverse = pca.inverse_transform(pop_pca)
+# print(pop_pca)
+# print(pop)
+# print(pop_reverse)
+
+# # simple PSO单步计算的测试
+# pp = generate(3, 0.1)
+# pre = generate(3, 0.1)
+# evaluate = np.array([1, 2, 3])
+# data = PSO_PCA(pp, pre, evaluate, 3, 1)
+# print("pp:",pp)
+# print ("pre: ",pre)
+# print(data)
+# 经过测试返回字典数组

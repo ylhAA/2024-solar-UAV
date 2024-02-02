@@ -2,6 +2,7 @@ import vsp_3
 import numpy as np
 from datetime import datetime
 
+
 # # 参考示例 NACA 3412的颠倒 和 NASA SC-0412
 # stage = 7
 # root_up = [0.20027, 0.06942, 0.26365, 0.01476, 0.27234, 0.14104, 0.17256, 0.20330]
@@ -41,7 +42,7 @@ def cal_xcg(up_root, low_root, up_tip, low_tip, stag):
         # 把0的参数代替为1
         Xcg = Xcg_1 - var_value_1 / ((var_value_1 - var_value_0) / (Xcg_1 - Xcg_0))
         Xcg_0 = Xcg_1
-        cmy_0 = cmy_1
+        # cmy_0 = cmy_1 # 好像是多此一举
         if Xcg > 1 or Xcg < 0:
             flag = 2
             break
@@ -156,7 +157,7 @@ def alpha_cal(up_root, low_root, up_tip, low_tip, stag, xcg):
         print("ERROR\n超过合理迭代范围")
     else:
         pass
-    with open(supervise_file,'a') as file:
+    with open(supervise_file, 'a') as file:
         file.write(f"angle calculation\nalpha: {AOA}\niteration_gap = {iteration_gap}, value = {value}\n")
     return AOA, flag
     # 前后插值控制 步长控制 最大步数控制
@@ -184,19 +185,20 @@ def balance(flag, up_root, low_root, up_tip, low_tip, stag):
         if error == 0:
             alpha, error = alpha_cal(up_root, low_root, up_tip, low_tip, stag, Xcg - chord_line * 0.08)  # 计算配平攻角
             if error != 0:  # 焦点计算成功 但是配平失败
-                error = error + 1  # 区分报错原因 都加上了1  返回2 配平未收敛 返回3 配平发散
+                error = error + 2  # 区分报错原因 都加上了2  返回3 配平未收敛 返回4 配平发散
                 alpha = 0  # 一旦报错就重置
             else:
                 pass  # 否则配平成功直接给出结果
-        else:  # 焦点计算失败
+        else:  # 焦点计算失败 返回代理值
             alpha = 0
+            Xcg = 0.3
     elif flag == 1:  # 焦点估计 配平计算
         # 代理估计焦点位置
         Xcg = 0.25381944948572055
         if error == 0:
             alpha, error = alpha_cal(up_root, low_root, up_tip, low_tip, stag, Xcg - chord_line * 0.08)  # 计算配平攻角
             if error != 0:  # 焦点计算成功 但是配平失败
-                error = error + 1  # 区分报错原因 都加上了1  返回2 配平未收敛 返回3 配平发散
+                error = error + 2  # 区分报错原因 都加上了2  返回3 配平未收敛 返回4 配平发散
                 alpha = 0  # 一旦报错就重置
             else:
                 pass  # 否则配平成功直接给出结果
@@ -220,16 +222,15 @@ def balance(flag, up_root, low_root, up_tip, low_tip, stag):
             file.write(f"SUCCESS\n alpha:{alpha} \n")
         elif error == 1:
             file.write(f"{error} Xcg iteration fail\n")
-        elif error == 1:
-            file.write(f"{error} Xcg divergence\n")
         elif error == 2:
-            file.write(f"{error} alpha iteration fail\n")
+            file.write(f"{error} Xcg divergence\n")
         elif error == 3:
+            file.write(f"{error} alpha iteration fail\n")
+        elif error == 4:
             file.write(f"{error} alpha divergence\n")
         else:
             file.write(f"UNKNOWN Situation\n")
     return alpha, Xcg, error
-
 
 # #############################################################
 # #################### 简单的demo与测试 #########################
