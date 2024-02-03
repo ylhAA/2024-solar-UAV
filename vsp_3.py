@@ -156,8 +156,8 @@ def vsp_aero(x_cg, aoa):  # 重心位置 迎角
     # 检查和清除否则模型会叠加干扰后续模型的建立
     vsp.VSPCheckSetup()
     vsp.VSPRenew()
-    result_file = "D:\\aircraft design competition\\24solar\\design_model\\whole_wing_optimization\\vsp"
-    "\\result.csv"
+    # result_file = "D:\\aircraft design competition\\24solar\\design_model\\whole_wing_optimization\\vsp"
+    # "\\result.csv"
     # 几何文件写入
     filename_vsp_aero_ana = ("D:\\aircraft design competition\\24solar\\design_model"
                              "\\whole_wing_optimization\\vsp\\test3.vsp3")
@@ -274,9 +274,9 @@ def vsp_aero(x_cg, aoa):  # 重心位置 迎角
     print(f"CMy = {CMy}\n")
     # 暂时想到给出这些数据 描述表面平坦度等其他约束条件的参数可能要想别的办法
 
-    # 这里储存一下结果文件，路径改一下就好了 应该多次迭代会覆盖的
-    vsp.WriteResultsCSVFile(test,
-                            result_file)
+    # # 这里储存一下结果文件，路径改一下就好了 应该多次迭代会覆盖的
+    # vsp.WriteResultsCSVFile(test,
+    #                         result_file)
     return cl, CMy, cdi
 
 
@@ -300,8 +300,9 @@ def vsp_aero_sweep(x_cg):
 
     # 设置defaults
     vsp.SetAnalysisInputDefaults(comp_geom)
-    analysis_name_results = vsp.ExecAnalysis(comp_geom)  # 返回的是一个ID
-    print("The Geom Result:\n", analysis_name_results)
+    vsp.ExecAnalysis(comp_geom)
+    # analysis_name_results = vsp.ExecAnalysis(comp_geom)  # 返回的是一个ID
+    # print("The Geom Result:\n", analysis_name_results)
     # 把所有的分析模式全部输出来
     # for analysis in vsp.ListAnalysis():
     #     print(analysis)
@@ -310,8 +311,8 @@ def vsp_aero_sweep(x_cg):
     analysis_name = "VSPAEROSweep"  # 找到一个适合的求解器 不要用single point
     vsp.SetIntAnalysisInput(comp_geom, "AnalysisMethod", (1, vsp.VORTEX_LATTICE))
     # 打印该求解器所有可以更改的参数
-    print("VSPAEROSweep 所有可选参数\n")
-    vsp.PrintAnalysisInputs(analysis_name)
+    # print("VSPAEROSweep 所有可选参数\n")
+    # vsp.PrintAnalysisInputs(analysis_name)
 
     # 设置参考翼面
 
@@ -368,7 +369,7 @@ def vsp_aero_sweep(x_cg):
 
     # #############################################################
     print("\tExecution...")
-    test = vsp.ExecAnalysis(analysis_name)
+    vsp.ExecAnalysis(analysis_name)
     print("COMPLETE")
     # #############################################################
 

@@ -62,34 +62,102 @@ def data_package(population, pop):
 # ######################## PSO-PCA  ###########################
 # #############################################################
 # 粒子群算法-主成分分析 单步更新
-def PSO_PCA(pop, pre_pop, evaluate, population, rate):
+def PSO_PCA_0(pop, pre_pop, p_best, evaluate, population, rate):
     # 输入参数解释
     # pop种群的扰动完整数据 population 种群个体数目
+    # p_best 个体最佳记录 all_best 群体历史最佳记录
     # pre_pop 上一次迭代的种群数据 evaluate评估值
+    # person_evaluate 个体历史最佳评估值 all_evaluate 群体最佳评估值
     # rate 更新速率
-    n_component = 2  # 降阶次数
-    inertia_eff = 0.2  # 惯性参数
-    guide_eff = 0.5  # 寻优参数
-    rand_eff = 0.1  # 布朗运动参数
+
+    # 参数设置
+    n_component = 4  # 降阶次数
+    inertia_eff = 0.25  # 惯性参数
+    guide_eff = 0.5  # 全局寻优参数
+    self_eff = 0.3  # 自身寻优参数
+
     # PCA 处理
+    # 采用整体数据集进行拟合
+    com_set = np.vstack((pop, pre_pop, p_best))
     pca = PCA(n_component)
-    pop_pca = pca.fit_transform(pop)
-    pre_pca = pca.transform(pre_pop)  # 上一步的粒子位置
+    _ = pca.fit_transform(com_set)
+    # 利用PCA对数据进行降维
+    pop_pca = pca.transform(pop)
+    pre_pca = pca.transform(pre_pop)
+    p_best_pca = pca.transform(p_best)
+
     velocity = pop_pca - pre_pca  # 获得速度向量组
-    rand = np.random.rand(population, n_component)
-    rand = rand - 0.5
     best_ID = np.argmax(evaluate)  # 获得评估值最高的个体ID
+    # 向惯性 自身最佳位置 全局最佳位置进行更新
     for i in range(population):
         if i != best_ID:
             pop_pca[i] = pop_pca[i] + (pop_pca[best_ID] - pop_pca[i]) * rate * guide_eff + velocity[
-                i] * inertia_eff * rate + rand[i] * rate * rand_eff
-        else:
-            pass
+                i] * inertia_eff * rate + (p_best_pca[i] - pop_pca[i]) * rate * self_eff
+        else:  # 无需向自己更新了
+            pop_pca[i] = pop_pca[i] + velocity[i] * inertia_eff * rate + (p_best_pca[i] - pop_pca[i]) * rate * self_eff
+    # 行数相同直接反变换
     pop_reverse = pca.inverse_transform(pop_pca)
     data = data_package(population, pop_reverse)
     # 返回两个量,一个是用于计算的字典组 另一个是更新的扰动种群
     return data, pop_reverse
 
+
+# 主要是对开始过早收敛的问题进行优化
+def PSO_PCA_1(pop, pre_pop, p_best, evaluate, population, rate, iterations):
+    # 输入参数解释
+    # pop种群的扰动完整数据 population 种群个体数目
+    # p_best 个体最佳记录 all_best 群体历史最佳记录
+    # pre_pop 上一次迭代的种群数据 evaluate评估值
+    # person_evaluate 个体历史最佳评估值 all_evaluate 群体最佳评估值
+    # rate 更新速率
+
+    # 参数设置
+    n_component = 4  # 降阶次数
+    # 根据迭代步数决定更新系数
+    inertia_eff, guide_eff, self_eff = ratio_determine(population, iterations, rate)
+    # PCA 处理
+    # 采用整体数据集进行拟合
+    com_set = np.vstack((pop, pre_pop, p_best))
+    pca = PCA(n_component)
+    _ = pca.fit_transform(com_set)
+    # 利用PCA对数据进行降维
+    pop_pca = pca.transform(pop)
+    pre_pca = pca.transform(pre_pop)
+    p_best_pca = pca.transform(p_best)
+
+    velocity = pop_pca - pre_pca  # 获得速度向量组
+    best_ID = np.argmax(evaluate)  # 获得评估值最高的个体ID
+    # 向惯性 自身最佳位置 全局最佳位置进行更新
+    for i in range(population):
+        if i != best_ID:
+            pop_pca[i] = pop_pca[i] + (pop_pca[best_ID] - pop_pca[i]) * rate * guide_eff + velocity[
+                i] * inertia_eff * rate + (p_best_pca[i] - pop_pca[i]) * rate * self_eff
+        else:  # 无需向自己更新了
+            pop_pca[i] = pop_pca[i] + velocity[i] * inertia_eff * rate + (p_best_pca[i] - pop_pca[i]) * rate * self_eff
+    # 行数相同直接反变换
+    pop_reverse = pca.inverse_transform(pop_pca)
+    data = data_package(population, pop_reverse)
+    # 返回两个量,一个是用于计算的字典组 另一个是更新的扰动种群
+    return data, pop_reverse
+
+
+def ratio_determine(population, iterations, ratio):
+    # 设置开始最终收敛参数
+    inertia_eff = 0.2  # 惯性参数
+    guide_eff = 0.5  # 全局寻优参数
+    self_eff = 0.2  # 自身寻优参数
+    if iterations < population * ratio:
+        # 跳动大的中间参数
+        inertia_eff = 0.25  # 惯性参数
+        guide_eff = 0.5  # 全局寻优参数
+        self_eff = 0.3  # 自身寻优参数
+    else:
+        para = 1 - iterations / population + ratio
+        inertia_eff = inertia_eff * para
+        guide_eff = guide_eff * para
+        self_eff = self_eff * para
+
+    return inertia_eff, guide_eff, self_eff
 
 # #############################################################
 # ######################## GWO-PCA  ###########################
@@ -142,3 +210,11 @@ def PSO_PCA(pop, pre_pop, evaluate, population, rate):
 # print(pop_reserve)
 # print(len(data))
 # 经过测试返回字典数组 和扰动步
+
+# # 利用组合数据集进行pca
+# pop = np.array([[1, 2], [3, 4]])
+# pre_pop = np.array([[5, 6], [7, 8]])
+# p_best = np.array([[9, 10], [11, 12]])
+# all_best = np.array([[13, 14], [15, 16]])
+# combined = np.vstack((pop, pre_pop, p_best, all_best))
+# print(combined)

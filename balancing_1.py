@@ -2,6 +2,7 @@ import vsp_3
 import numpy as np
 from datetime import datetime
 
+
 # # 参考示例 NACA 3412的颠倒 和 NASA SC-0412
 # stage = 7
 # root_up = [0.20027, 0.06942, 0.26365, 0.01476, 0.27234, 0.14104, 0.17256, 0.20330]
@@ -16,8 +17,8 @@ from datetime import datetime
 # 这个焦点计算不好用 感觉精度差而且计算时间长 也许是几何模型的问题？
 def cal_xcg(up_root, low_root, up_tip, low_tip, stag):
     # 参数设置
-    supervise_file = ("D:\\aircraft design competition\\24solar\\design_model\\whole_wing_optimization\\vsp"
-                      "\\supervise.txt")
+    # supervise_file = ("D:\\aircraft design competition\\24solar\\design_model\\whole_wing_optimization\\supervise"
+    #                   "\\balancing_supervise.txt")
     flag = 0  # 控制变量
     max_iterations = 10  # 最大迭代步数
     var_ctrl = 1e-4  # 理想状态下才能让函数到0 实际上并不行 防止越界发散
@@ -41,7 +42,7 @@ def cal_xcg(up_root, low_root, up_tip, low_tip, stag):
         # 把0的参数代替为1
         Xcg = Xcg_1 - var_value_1 / ((var_value_1 - var_value_0) / (Xcg_1 - Xcg_0))
         Xcg_0 = Xcg_1
-        cmy_0 = cmy_1
+        # cmy_0 = cmy_1 # 好像是多此一举
         if Xcg > 1 or Xcg < 0:
             flag = 2
             break
@@ -65,8 +66,9 @@ def cal_xcg(up_root, low_root, up_tip, low_tip, stag):
         print("ERROR\n超过合理迭代范围")
     else:
         pass
-    with open(supervise_file, 'a') as file:
-        file.write(f"Xcg: {Xcg}\niteration_gap = {iteration_gap}, value = {value}\n")
+
+    # with open(supervise_file, 'a') as file:
+    #     file.write(f"Xcg: {Xcg}\niteration_gap = {iteration_gap}, value = {value}\n")
     return Xcg, flag
 
 
@@ -97,8 +99,8 @@ def alpha_cal(up_root, low_root, up_tip, low_tip, stag, xcg):
     value_ctrl = 2e-2
     max_iterations = 10  # 最大迭代步数
     epsilon = 0.1  # 更新步长
-    supervise_file = ("D:\\aircraft design competition\\24solar\\design_model\\whole_wing_optimization\\vsp"
-                      "\\supervise.txt")
+    # supervise_file = ("D:\\aircraft design competition\\24solar\\design_model\\whole_wing_optimization\\vsp"
+    #                   "\\supervise.txt")
 
     # 建立几何
     vsp_3.create_Geom_1(up_root, low_root, up_tip, low_tip, stag)
@@ -119,14 +121,15 @@ def alpha_cal(up_root, low_root, up_tip, low_tip, stag, xcg):
         # 更新下一个点的位置
         alpha = alpha_1 - cmy_1 / ((cmy_1 - cmy_0) / (alpha_1 - alpha_0))
         # 这里先留着吧配平很容易失败的 监视一下到底什么情况
-        with open(supervise_file, 'a') as file:
-            file.write(f"iterations: {iterations}\n")
-            file.write(f"alpha: {alpha}\n")
-            file.write(f"alpha_0: {alpha_0}\n")
-            file.write(f"alpha_1: {alpha_1}\n")
-            file.write(f"cmy_0: {cmy_0}\n")
-            file.write(f"cmy_1: {cmy_1}\n")
-            # 更新参数0的值
+        # with open(supervise_file, 'a') as file:
+        #     file.write(f"iterations: {iterations}\n")
+        #     file.write(f"alpha: {alpha}\n")
+        #     file.write(f"alpha_0: {alpha_0}\n")
+        #     file.write(f"alpha_1: {alpha_1}\n")
+        #     file.write(f"cmy_0: {cmy_0}\n")
+        #     file.write(f"cmy_1: {cmy_1}\n")
+
+        # 更新参数0的值
         alpha_0 = alpha_1
         cmy_0 = cmy_1
         # 这个范围给的有点大可以试试看
@@ -143,7 +146,7 @@ def alpha_cal(up_root, low_root, up_tip, low_tip, stag, xcg):
         value = np.fabs(cmy_1 - cmy_0)
         iteration_gap = np.fabs(alpha_1 - alpha_0)
         iterations += 1
-    file.close()
+
     if iterations == max_iterations:
         flag = 1
         # 输出迭代情况
@@ -156,8 +159,9 @@ def alpha_cal(up_root, low_root, up_tip, low_tip, stag, xcg):
         print("ERROR\n超过合理迭代范围")
     else:
         pass
-    with open(supervise_file,'a') as file:
-        file.write(f"angle calculation\nalpha: {AOA}\niteration_gap = {iteration_gap}, value = {value}\n")
+
+    # with open(supervise_file, 'a') as file:
+    #     file.write(f"angle calculation\nalpha: {AOA}\niteration_gap = {iteration_gap}, value = {value}\n")
     return AOA, flag
     # 前后插值控制 步长控制 最大步数控制
 
@@ -167,8 +171,8 @@ def alpha_cal(up_root, low_root, up_tip, low_tip, stag, xcg):
 # #############################################################
 def balance(flag, up_root, low_root, up_tip, low_tip, stag):
     # 参数与default
-    supervise_file = ("D:\\aircraft design competition\\24solar\\design_model\\whole_wing_optimization\\vsp"
-                      "\\supervise.txt")
+    supervise_file = ("D:\\aircraft design competition\\24solar\\design_model\\whole_wing_optimization\\supervise"
+                      "\\balancing.txt")
     chord_line = 0.3
     alpha = 0
     error = 0
@@ -179,24 +183,33 @@ def balance(flag, up_root, low_root, up_tip, low_tip, stag):
         file.write(f"解算开始时间: {current_time}\n")
     # 首先进行几何生成
     vsp_3.create_Geom_1(up_root, low_root, up_tip, low_tip, stag)
-    if flag == 0:  # 焦点计算和力矩配平完整计算
+
+    # 焦点计算和力矩配平完整计算
+    if flag == 0:
         Xcg, error = cal_xcg(up_root, low_root, up_tip, low_tip, stag)  # 先计算焦点位置 返回1 未收敛 返回2 发散
         if error == 0:
             alpha, error = alpha_cal(up_root, low_root, up_tip, low_tip, stag, Xcg - chord_line * 0.08)  # 计算配平攻角
-            if error != 0:  # 焦点计算成功 但是配平失败
-                error = error + 1  # 区分报错原因 都加上了1  返回2 配平未收敛 返回3 配平发散
-                alpha = 0  # 一旦报错就重置
+            # 焦点计算成功 但是配平失败
+            if error != 0:
+                # 区分报错原因 都加上了2  返回3 配平未收敛 返回4 配平发散
+                error = error + 2
+                # 一旦报错就重置 此时焦点是计算出来的
+                alpha = 0
+            # 焦点和配平都成功
             else:
-                pass  # 否则配平成功直接给出结果
-        else:  # 焦点计算失败
+                pass
+        # 焦点计算失败 返回代理值
+        else:
             alpha = 0
-    elif flag == 1:  # 焦点估计 配平计算
+            Xcg = 0.3
+    # 焦点估计 配平计算
+    elif flag == 1:
         # 代理估计焦点位置
         Xcg = 0.25381944948572055
         if error == 0:
             alpha, error = alpha_cal(up_root, low_root, up_tip, low_tip, stag, Xcg - chord_line * 0.08)  # 计算配平攻角
             if error != 0:  # 焦点计算成功 但是配平失败
-                error = error + 1  # 区分报错原因 都加上了1  返回2 配平未收敛 返回3 配平发散
+                error = error + 2  # 区分报错原因 都加上了2  返回3 配平未收敛 返回4 配平发散
                 alpha = 0  # 一旦报错就重置
             else:
                 pass  # 否则配平成功直接给出结果
@@ -204,7 +217,8 @@ def balance(flag, up_root, low_root, up_tip, low_tip, stag):
             alpha = 0
         # 配平攻角计算
 
-    elif flag == 2:  # 焦点和配平都进行估计
+    # 焦点和配平都是估计值
+    elif flag == 2:
         # 焦点估计代理
         Xcg = 0.3
         # 配平代理
@@ -213,23 +227,20 @@ def balance(flag, up_root, low_root, up_tip, low_tip, stag):
         pass
 
     #  监控文件处理
-    supervise_file = ("D:\\aircraft design competition\\24solar\\design_model\\whole_wing_optimization\\vsp"
-                      "\\supervise.txt")
     with open(supervise_file, 'a') as file:
         if error == 0:
             file.write(f"SUCCESS\n alpha:{alpha} \n")
         elif error == 1:
             file.write(f"{error} Xcg iteration fail\n")
-        elif error == 1:
-            file.write(f"{error} Xcg divergence\n")
         elif error == 2:
-            file.write(f"{error} alpha iteration fail\n")
+            file.write(f"{error} Xcg divergence\n")
         elif error == 3:
+            file.write(f"{error} alpha iteration fail\n")
+        elif error == 4:
             file.write(f"{error} alpha divergence\n")
         else:
             file.write(f"UNKNOWN Situation\n")
     return alpha, Xcg, error
-
 
 # #############################################################
 # #################### 简单的demo与测试 #########################
