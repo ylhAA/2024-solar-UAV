@@ -6,8 +6,7 @@ from sklearn.decomposition import PCA
 # 导入的是种群数量和扰动最大范围   （注意需要仔细查看）
 def generate(population, max_range):
     pop = np.random.rand(population, 30)  # 30是控制参数的数目
-    biggest = np.max(pop)
-    pop = pop / biggest * max_range
+    pop = (pop - 0.5) * max_range
     return pop
 
 
@@ -62,12 +61,11 @@ def data_package(population, pop):
 # ######################## PSO-PCA  ###########################
 # #############################################################
 # 粒子群算法-主成分分析 单步更新
-def PSO_PCA_0(pop, pre_pop, p_best, evaluate, population, rate):
+def PSO_PCA_0(pop, pre_pop, p_best, evaluate, population, rate, maxrate):
     # 输入参数解释
     # pop种群的扰动完整数据 population 种群个体数目
-    # p_best 个体最佳记录 all_best 群体历史最佳记录
+    # p_best 个体最佳记录
     # pre_pop 上一次迭代的种群数据 evaluate评估值
-    # person_evaluate 个体历史最佳评估值 all_evaluate 群体最佳评估值
     # rate 更新速率
 
     # 参数设置
@@ -103,7 +101,7 @@ def PSO_PCA_0(pop, pre_pop, p_best, evaluate, population, rate):
 
 
 # 主要是对开始过早收敛的问题进行优化
-def PSO_PCA_1(pop, pre_pop, p_best, evaluate, population, rate, iterations):
+def PSO_PCA_1(pop, pre_pop, p_best, evaluate, population, rate, iterations, max_rate):
     # 输入参数解释
     # pop种群的扰动完整数据 population 种群个体数目
     # p_best 个体最佳记录 all_best 群体历史最佳记录
@@ -136,9 +134,23 @@ def PSO_PCA_1(pop, pre_pop, p_best, evaluate, population, rate, iterations):
             pop_pca[i] = pop_pca[i] + velocity[i] * inertia_eff * rate + (p_best_pca[i] - pop_pca[i]) * rate * self_eff
     # 行数相同直接反变换
     pop_reverse = pca.inverse_transform(pop_pca)
+    pop_reverse = modify_pop(pop_reverse, population, max_rate)
     data = data_package(population, pop_reverse)
     # 返回两个量,一个是用于计算的字典组 另一个是更新的扰动种群
     return data, pop_reverse
+
+
+def modify_pop(pop_reverse, population, max_rate):
+    max_rate = max_rate / 2
+    for i in range(population):
+        for j in range(30):
+            if pop_reverse[i][j] > max_rate:
+                pop_reverse[i][j] = max_rate
+            elif pop_reverse[i][j] < -max_rate:
+                pop_reverse[i][j] = -max_rate
+            else:
+                pass
+    return pop_reverse
 
 
 def ratio_determine(population, iterations, ratio):
@@ -159,10 +171,30 @@ def ratio_determine(population, iterations, ratio):
 
     return inertia_eff, guide_eff, self_eff
 
+
 # #############################################################
 # ######################## GWO-PCA  ###########################
 # #############################################################
 # 灰狼算法 主成分分析
+def GWO_PCA_0(pop, p_best, population, max_rate):
+    # 参数设置
+    n_component = 4  # 降阶次数
+
+    # PCA 处理
+    # 采用整体数据集进行拟合
+    com_set = np.vstack((pop, p_best))
+    pca = PCA(n_component)
+    _ = pca.fit_transform(com_set)
+    # 利用PCA对数据进行降维
+    pop_pca = pca.transform(pop)
+    p_best_pca = pca.transform(p_best)
+
+    # 行数相同直接反变换 数据打包
+    pop_reverse = pca.inverse_transform(pop_pca)
+    pop_reverse = modify_pop(pop_reverse, population, max_rate)
+    data = data_package(population, pop_reverse)
+    # 返回两个量,一个是用于计算的字典组 另一个是更新的扰动种群
+    return data, pop_reverse
 
 # #############################################################
 # ########################### GA ##############################
@@ -218,3 +250,10 @@ def ratio_determine(population, iterations, ratio):
 # all_best = np.array([[13, 14], [15, 16]])
 # combined = np.vstack((pop, pre_pop, p_best, all_best))
 # print(combined)
+
+# # 测试区间控制
+# max_ = 0.1
+# mat = np.ones((3,30))
+# mat = -mat
+# mat = modify_pop(mat, 3, max_)
+# print(mat)

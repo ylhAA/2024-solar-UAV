@@ -272,12 +272,13 @@ def vsp_aero(x_cg, aoa):  # 重心位置 迎角
     print("num of data in 'VSPAERO_Polar > CMy'", vsp.GetNumData(polar_id, "CMy"))
     CMy = vsp.GetDoubleResults(polar_id, "CMy", 0)
     print(f"CMy = {CMy}\n")
+    CDtot = vsp.GetDoubleResults(polar_id, "CDtot", 0)
     # 暂时想到给出这些数据 描述表面平坦度等其他约束条件的参数可能要想别的办法
 
     # # 这里储存一下结果文件，路径改一下就好了 应该多次迭代会覆盖的
     # vsp.WriteResultsCSVFile(test,
     #                         result_file)
-    return cl, CMy, cdi
+    return cl, CMy, cdi, CDtot
 
 
 # #############################################################

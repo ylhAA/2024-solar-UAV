@@ -25,10 +25,11 @@ def Optimization(iteration, population, method):
 # ################## PSO-PCA-Optimization #####################
 # #############################################################
 def PSO_PCA_Optimization(iteration, population):
+    variance = 1e-2  # 用于控制适应度收敛准则的 方均根收敛界限
     iterations = 0  # 控制迭代的变量
     rate = 0.5  # 用来控制初始搜索范围的系数 表示迭代一定比例后开始进行收缩
     max_range = 0.08  # 扰动范围
-    solve_mode = 0  # 求解的方式 用于控制求解函数 详细信息在 solver 和 balancing里面
+    solve_mode = 3  # 求解的方式 用于控制求解函数 详细信息在 solver 和 balancing里面
     best_evaluate = np.zeros(iteration)  # 用来存储每次迭代的最优值
 
     population_file = ("D:\\aircraft design competition\\24solar\\design_model\\"
@@ -68,11 +69,10 @@ def PSO_PCA_Optimization(iteration, population):
 
     # 开始迭代
     for iterations in range(iteration):
-        # 粒子群算法更新 搜索率线性递减
-        # data_list, pop_new = algorithm_1.PSO_PCA_0(pop, pre, p_best, evaluate,
-        #                                          population, rate*0.5+rate * np.sqrt((1 - iterations / iteration)))
+        # 粒子群算法更新 搜索率线性递减 data_list, pop_new = algorithm_1.PSO_PCA_0(pop, pre, p_best, evaluate, population,
+        # rate*0.5+rate * np.sqrt((1 - iterations / iteration)),max_range)
         data_list, pop_new = algorithm_1.PSO_PCA_1(pop, pre, p_best, evaluate,
-                                                   population, rate, iteration)
+                                                   population, rate, iteration, max_range)
         # 种群的重新赋值
         pre = pop
         pop = pop_new
@@ -115,6 +115,19 @@ def PSO_PCA_Optimization(iteration, population):
         with open(population_file, 'a') as file:
             file.write(f"Iterations: {iterations + 1}\npopulation:\n{pop}\nevaluation\n{evaluate}")
 
+        # 判定方均根收敛准则
+        value, error = iteration_ctrl(evaluate, variance)
+        if error != 0:
+            with open(supervise_file, 'a') as file:
+                file.write(f"\n all population are zero\n Abnormal termination\n")
+            break
+        if value < variance:
+            break
+        else:
+            pass
+        with open(supervise_file, 'a') as file:
+            file.write(f"\nvariance value:{value}\n")
+
     # # 历史最佳个体写入
     root_up, root_low, tip_up, tip_low = algorithm_1.disturb_modify(history_best)
     with open(supervise_file, 'a') as file:
@@ -124,9 +137,9 @@ def PSO_PCA_Optimization(iteration, population):
         file.write(f"tip_up:{tip_up}\ntip_low:{tip_low}")
 
     # 后处理画图
-    index = np.arange(0, iteration)
+    index = np.arange(0, iterations+1)
     plt.figure()
-    plt.scatter(index, best_evaluate)
+    plt.scatter(index, best_evaluate[:iterations+1])
     plt.title('PSO Optimization Trend')
     plt.xlabel('Iterations')
     plt.ylabel('Evaluate')
@@ -156,6 +169,40 @@ def GWO_PCA_Optimization(iteration, population):
 # #############################################################
 def GA_Optimization(iteration, population):
     return 0
+
+
+# #############################################################
+# ###################### iteration_ctrl #######################
+# #############################################################
+# 用于评估函数是否满足收敛指标
+def iteration_ctrl(evaluate, variance):
+    value = 0  # 中间值
+    avr = 0  # 均值储存
+    length = len(evaluate)  # 适应度数组长度
+    error = 0
+
+    # 除零检查
+    if length == 0:
+        length = 1
+    else:
+        pass
+
+    for i in range(length):
+        avr += evaluate[i]
+    avr = avr / length
+    # 这个模型接入可能会存在种群全是0的情况 采用除以零保护
+    if avr == 0:
+        avr = 1
+        error = 1
+        print("error \nall population unreasonable\n")
+    else:
+        pass
+
+    for i in range(length):
+        value += np.power((evaluate[i] - avr) / avr, 2)  # 标准化然后平方
+    value = value / length
+    value = np.sqrt(value)
+    return value, error
 
 # #############################################################
 # #################### 简单的demo与测试 #########################
