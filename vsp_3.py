@@ -386,3 +386,108 @@ def vsp_aero_sweep(x_cg):
     CMy = vsp.GetDoubleResults(polar_id, "CMy", 0)
     print(f"CMy = {CMy}\n")
     return CMy
+
+
+def vsp_aero_sweep_0(start, end):
+    x_cg = 0
+    # 检查和清除否则模型会叠加干扰后续模型的建立
+    vsp.VSPCheckSetup()
+    vsp.VSPRenew()
+
+    # 几何文件写入
+    filename_vsp_aero_ana = ("D:\\aircraft design competition\\24solar\\design_model"
+                             "\\whole_wing_optimization\\vsp\\test3.vsp3")
+    # 这里是为了调用几何
+    vsp.ReadVSPFile(filename_vsp_aero_ana)
+
+    # 分析文件命名
+    comp_geom = "VSPAEROComputeGeometry"
+    print(comp_geom)
+
+    # 设置defaults
+    vsp.SetAnalysisInputDefaults(comp_geom)
+    vsp.ExecAnalysis(comp_geom)
+
+    # 分析方法
+    analysis_name = "VSPAEROSweep"  # 找到一个适合的求解器 不要用single point
+    vsp.SetIntAnalysisInput(comp_geom, "AnalysisMethod", (1, vsp.VORTEX_LATTICE))
+
+    # 手动设置 来自GUI总体参数确定后的 From Model
+    S_ref = [0.763]
+    vsp.SetDoubleAnalysisInput(analysis_name, "Sref", S_ref, 0)
+    b_ref = [2.540]
+    vsp.SetDoubleAnalysisInput(analysis_name, "bref", b_ref, 0)
+    c_ref = [0.304]
+    vsp.SetDoubleAnalysisInput(analysis_name, "cref", c_ref, 0)
+    # 自动计算设置 (暂时不成功)
+    # ref_flag = [0]
+    # vsp.SetIntAnalysisInput(analysis_name, "RefFlag", ref_flag, 0)
+    vsp.Update()
+    vsp.Update()
+
+    # 设置来流参数
+    mach_speed = [0.02053]  # 7.00m/s altitude 0m
+    vsp.SetDoubleAnalysisInput(analysis_name, "MachStart", mach_speed, 0)
+    machNpts = [1]
+    vsp.SetIntAnalysisInput(analysis_name, "MachNpts", machNpts, 0)
+    alpha_start = [start]
+    vsp.SetDoubleAnalysisInput(analysis_name, "AlphaStart", alpha_start, 0)
+    alpha_end = [end]
+    vsp.SetDoubleAnalysisInput(analysis_name, "AlphaEnd", alpha_end, 0)
+    alphaNpts = [5]
+    vsp.SetIntAnalysisInput(analysis_name, "AlphaNpts", alphaNpts, 0)
+    vsp.Update()
+    rho = [1.225]  # 近地面大气密度参数
+    vsp.SetDoubleAnalysisInput(analysis_name, "Rho", rho, 0)
+    Re = [143651]  # 近地面 7m/s 参考长度为弦长 0.30m
+    vsp.SetDoubleAnalysisInput(analysis_name, "ReCref", Re, 0)
+
+    # 设置重心
+    xcg = [x_cg]
+    vsp.SetDoubleAnalysisInput(analysis_name, "Xcg", xcg, 0)
+
+    # 高级设置
+    N_cpu = [8]  # 调用CPU数目
+    vsp.SetIntAnalysisInput(analysis_name, "NCPU", N_cpu, 0)
+    Iter = [10]  # 迭代步数
+    vsp.SetIntAnalysisInput(analysis_name, "WakeNumIter", Iter, 0)
+    vsp.Update()
+    print("analysis parameter modified\n COMPLETED\n")
+    # print("VSPAEROSweep 参数输入结果\n")
+    # vsp.PrintAnalysisInputs(analysis_name)
+
+    # #############################################################
+    # # 进行中间的保存尝试 观察vsp3是否正常
+    # file_name = "D:\\aircraft design competition\\24solar\\design_model\\whole_wing_optimization\\vsp\\test2.vsp3"
+    # vsp.WriteVSPFile(file_name, vsp.SET_ALL)
+    # ##############################################################
+    # 开始计算
+
+    # #############################################################
+    print("\tExecution...")
+    vsp.ExecAnalysis(analysis_name)
+    print("COMPLETE")
+    # #############################################################
+
+    # 后处理
+    # #############################################################
+    # # 返回一个列表里面是所有可用结果的名称
+    # results = vsp.GetAllResultsNames()
+    # # 查找point的ID并赋值给point_id
+    # point_id = vsp.FindResultsID("point")
+    # # 一样的也是一个查找
+    polar_id = vsp.FindResultsID("VSPAERO_Polar")
+    print("num of data in 'VSPAERO_Polar > CMy'", vsp.GetNumData(polar_id, "CMy"))
+    CMy = vsp.GetDoubleResults(polar_id, "CMy", 0)
+    print(f"CMy = {CMy}\n")
+    print("num of data in 'VSPAERO_Polar > CL': ", vsp.GetNumData(polar_id, "CL"))
+    cl = vsp.GetDoubleResults(polar_id, "CL", 0)
+    print(f"CL = {cl}\n")
+    return CMy, cl
+
+
+# #############################################################
+# #################### 简单的demo与测试 #########################
+# #############################################################
+# vsp_aero_sweep_0(-4, 4)
+# vsp_aero(0.25, 5)

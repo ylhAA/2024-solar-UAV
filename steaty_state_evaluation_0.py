@@ -130,6 +130,9 @@ def Trust_evaluation(power, velocity, stage):
 # print(value)
 
 
+# aa = Trust_evaluation(78, 8, 2)
+# print(aa)
+
 # # 检验上升率评估模型
 # cd_start = 0.01
 # cd_end = 0.20
