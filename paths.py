@@ -1,0 +1,6 @@
+population_file = ".\\supervise\\pso_population_record.txt"
+supervise_file = ".\\supervise\\pso_supervise.txt"
+fig_path = ".\\supervise\\pso_pca_optimization_2.png"
+vsp_file = ".\\vsp\\model.vsp3"
+tip_file = ".\\airfoil_file\\tip.dat"
+root_file = ".\\airfoil_file\\root.dat"
