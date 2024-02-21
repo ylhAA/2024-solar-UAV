@@ -1,5 +1,5 @@
 import numpy as np
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 import numpy.linalg as LA
 import math
 import algorithm_1
@@ -105,7 +105,6 @@ def airfoil_Generate(up_cf, low_cf, order, number):
     x_sin = np.linspace(0, np.pi / 2, number + 1)
     x_up = 0.5 * np.sin(2 * x_sin - np.pi / 2) + 0.5
     x_low = x_up
-
     # 预先生成初始系数
     cst_generator = CST_generator(order, x_up, x_low)
     temp_up, temp_low = cst_generator.generate_airfoil(up_cf, low_cf)
@@ -114,14 +113,14 @@ def airfoil_Generate(up_cf, low_cf, order, number):
     # print(x_up)
     # print(Y_CST_up)
     # 检验是否满足曲率条件
-    flag, kappa = Stress_Check(x_up, Y_CST_up)
+    curve_flag, thick_flag, kappa = Stress_Check(x_up, Y_CST_up, Y_CST_low)
     # print(flag)
-
+    # 默认flag是0 如果有一个约束没有满足则重新生成
     # 数据规整便于输入处理
     x_up_reversed = x_up[::-1]
     y_up_reversed = Y_CST_up[::-1]
-    x_combined = np.concatenate((x_up_reversed, x_low))
-    y_combined = np.concatenate((y_up_reversed, Y_CST_low))
+    x_combined = np.concatenate((x_up_reversed, x_low[1:]))
+    y_combined = np.concatenate((y_up_reversed, Y_CST_low[1:]))
 
     # # 创建包含两个子图的图形
     # fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 8))
@@ -147,7 +146,7 @@ def airfoil_Generate(up_cf, low_cf, order, number):
     # plt.show()
 
     # 返回了标签值用于判定是否需要重新生成来满足低应力铺板条件
-    return x_combined, y_combined, flag
+    return x_combined, y_combined, curve_flag, thick_flag
 
 
 # #############################################################
@@ -164,17 +163,24 @@ def Geom_Generate(pop, tip_airfoil_path, root_airfoil_path):
     flag1 = 1  # 处理是否符合几何条件 根部变量
     flag2 = 1  # 处理是否符合几何条件 稍部变量
     iterations = -1  # 重置次数
-    max_iteration = 5  # 最大重置次数
+    max_iteration = 10  # 最大重置次数
     while (flag1 or flag2) and iterations <= max_iteration:  # flag1 flag2 其中至少有一个是1 并且iterations小于最大步数
         # 添加扰动 完成扰动到翼型的转化
         if flag1:
             root_up, root_low, _, _ = algorithm_1.disturb_modify(pop)
             # 根部写入
-            a, b, flag = airfoil_Generate(root_up, root_low, bernstein_order, num)
+            a, b, curve_flag, thick_flag = airfoil_Generate(root_up, root_low, bernstein_order, num)
             # 不满足条件重新生成
-            if flag != 0:
-                print("root airfoil reset")
-                pop[:8] = np.random.uniform(-inner_max_range / 2, inner_max_range / 2, 8)
+            if curve_flag != 0:
+                print("root_up airfoil reset")
+                pop[:4] = np.random.uniform(-inner_max_range / 2, inner_max_range / 2, 4)
+
+            elif thick_flag != 0:
+                # 进行末端的微调
+                print("root_low airfoil reset")
+                pop[14] -= 0.03
+                pop[13] -= 0.02
+                pop[12] -= 0.01
             # 满足条件写入根部翼型文件
             else:
                 writefile(a, b, root_airfoil_path)
@@ -184,10 +190,14 @@ def Geom_Generate(pop, tip_airfoil_path, root_airfoil_path):
 
         if flag2:
             _, _, tip_up, tip_low = algorithm_1.disturb_modify(pop)
-            a, b, flag = airfoil_Generate(tip_up, tip_low, bernstein_order, num)
-            if flag != 0:
-                print("tip airfoil reset")
-                pop[15:23] = np.random.uniform(-inner_max_range / 2, inner_max_range / 2, 8)
+            a, b, curve_flag, thick_flag = airfoil_Generate(tip_up, tip_low, bernstein_order, num)
+            if curve_flag != 0:
+                print("tip_up airfoil reset")
+                pop[15:19] = np.random.uniform(-inner_max_range / 2, inner_max_range / 2, 4)
+            elif thick_flag != 0:
+                # 这个基础翼型厚度大，可能发生双向的扰动问题，用随机小扰动解决
+                print("tip_low airfoil reset")
+                pop[26:30] = np.random.uniform(-inner_max_range / 2, inner_max_range / 2, 4)
             else:
                 # 稍部写入
                 writefile(a, b, tip_airfoil_path)
@@ -207,13 +217,19 @@ def Geom_Generate(pop, tip_airfoil_path, root_airfoil_path):
 # #############################################################
 # ##################### Geom_Generate #########################
 # #############################################################
-def Stress_Check(x, y):
+# 传入上下表面的点数据，返回是否满足上表面曲率约束和总厚度约束
+def Stress_Check(x_up, y_up, y_low):
     # 输入标准弦长 前缘和后缘不贴片的距离
     chord = 0.3
     le_ignore_length = 2e-2
     te_ignore_length = 6e-3
-    flag = 0
-    threshold = 2.85  # deg20 曲率上限
+    # 用来标记曲率条件
+    curvature_flag = 0
+    # 用来标记厚度条件
+    thickness_flag = 0
+    # deg20 曲率上限
+    curve_threshold = 2.85
+    thick_threshold = 2e-3
     # 归一化处理
     le_ignore_length = le_ignore_length / chord
     te_ignore_length = 1 - te_ignore_length / chord
@@ -224,17 +240,17 @@ def Stress_Check(x, y):
     start_id = 0
     # 正常取到后缘限制的第一个点的序号 如果到达倒数第三个点之后则返回倒数第三个点（所求范围一定是扩大的）
     end_id = 0
-    n_points = len(x)
+    n_points = len(x_up)
 
     for i in range(n_points):
-        if x[i] > le_ignore_length and flag1 == 0:
+        if x_up[i] > le_ignore_length and flag1 == 0:
             if i <= 1:
                 start_id = 0
                 flag1 = 1
             else:
                 start_id = i - 2
                 flag1 = 1
-        elif x[i] > te_ignore_length and flag2 == 0:
+        elif x_up[i] > te_ignore_length and flag2 == 0:
             if i >= n_points - 3:
                 end_id = n_points - 3
                 flag2 = 1
@@ -245,14 +261,20 @@ def Stress_Check(x, y):
             break
     kappa = np.zeros(n_points - 2)
     for i in range(n_points - 2):
-        kappa[i] = curvature([x[i], x[i + 1], x[i + 2]], [y[i], y[i + 1], y[i + 2]])
+        kappa[i] = curvature([x_up[i], x_up[i + 1], x_up[i + 2]], [y_up[i], y_up[i + 1], y_up[i + 2]])
     # 遍历在索引范围内的kappa 检测其曲率是否超标
     for i in range(start_id, end_id, 1):
-        if kappa[i] > threshold:
-            flag = 1
+        # 如果厚度太薄则进行返回错误 准备重置
+        if y_up[i] - y_low[i] < thick_threshold:
+            thickness_flag = 1
         else:
             pass
-    return flag, kappa
+        # 如果曲率过大则返回错误1 进行重置
+        if kappa[i] > curve_threshold:
+            curvature_flag = 1
+        else:
+            pass
+    return curvature_flag, thickness_flag, kappa
 
 
 # 找来的三点曲率计算方法 去掉了法向量输出
@@ -334,6 +356,7 @@ def writefile(x, y, outputPath):
     print("airfoil file output successfully\n")
     return 0
 
+
 # #############################################################
 # #################### 简单的demo与测试 #########################
 # #############################################################
@@ -368,3 +391,9 @@ def writefile(x, y, outputPath):
 # # 曲率函数的使用与验证
 # # 存在除0错误
 # # 改进一下
+
+# AA = np.arange(30)
+# print(AA[:4])
+# print(AA[11:15])
+# print(AA[15:19])
+# print(AA[26:30])

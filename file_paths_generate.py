@@ -17,5 +17,8 @@ def check_and_generate_path():
     create_directories_if_not_exist(paths.root_file)
     create_directories_if_not_exist(paths.tip_file)
     create_directories_if_not_exist(paths.vsp_file)
+    create_directories_if_not_exist(paths.dictionary_file)
+    create_directories_if_not_exist(paths.input_weight_file)
+    create_directories_if_not_exist(paths.output_weight_file)
     print("Paths Checked")
     return 0

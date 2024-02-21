@@ -22,25 +22,30 @@ def solve(pop, flag):
     tip = paths.tip_file
     root = paths.root_file
     length = len(pop)
-    evaluate_mode = 2  # 评估函数选取
+    evaluate_mode = 0  # 评估函数选取
     evaluation = np.zeros(length)
     # 硬算配平
     if flag == 0:
         for i in range(length):
             pop_checked, iteration = CST_Generate.Geom_Generate(pop[i], tip, root)
             # 如果进行了更改则更新种群
-            if iteration != 0:
-                pop[i] = pop_checked
+            if iteration <= 10:
+                if iteration != 0:  # 表明已经经过重置 需要更新
+                    pop[i] = pop_checked
+                else:  # 没有经过重置
+                    pass
+                # 文件路径已经写入 可以读取计算气动数据了
+                Xcg, alpha = balancing_3.balance(paths.tip_file, paths.root_file)
+                cl, _, cdi, CD_tot = vsp_4.vsp_aero(Xcg, alpha)  # 这里是直接读取几何文件的所以不用再输入
+                # 气动解算完成引入评估函数
+                if evaluate_mode == 2:
+                    evaluation[i] = evaluate(cl, CD_tot, evaluate_mode)  # 接入稳态爬升模型
+                else:
+                    evaluation[i] = evaluate(cl, cdi, evaluate_mode)  # 代数评估函数代理
+            elif iteration >= 10:  # 默认参数评估值置零（没有调用VLM进行求解的必要）
+                evaluation[i] = 0  # 不进行外部的位置更新，但是评估值置零，给该粒子一个机会，寻找较优值
             else:
                 pass
-            # 文件路径已经写入 可以读取计算气动数据了
-            alpha, Xcg = balancing_3.balance(paths.tip_file, paths.root_file)
-            cl, _, cdi, CD_tot = vsp_4.vsp_aero(Xcg, alpha)  # 这里是直接读取几何文件的所以不用再输入
-            # 气动解算完成引入评估函数
-            if evaluate_mode == 2:
-                evaluation[i] = evaluate(cl, CD_tot, evaluate_mode)  # 接入稳态爬升模型
-            else:
-                evaluation[i] = evaluate(cl, cdi, evaluate_mode)  # 代数评估函数代理
 
     # 神经网络代理
     elif flag == 1:

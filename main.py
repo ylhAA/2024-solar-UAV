@@ -7,5 +7,14 @@
 # 基础是NASA-SC-0412 NACA-3412 upsidedown 已经扩大了搜索范围
 import Optimization_3
 import file_paths_generate
+# file_paths_generate.check_and_generate_path()
+# Optimization_3.PSO_PCA_Optimization(1, 30)
+# 增加了搜索范围，改正了稳态模型的错误，并引入稳态模型作为合理性检验，引入最大曲率检验，引入尾缘厚度合理性检验
+# 扩大了搜索范围，采用了自定义的CST函数 完成了.dat格式翼型的输出
+# 共求解1200点，7200次，预计时间12小时
+
+import Optimization_3
+import file_paths_generate
 file_paths_generate.check_and_generate_path()
-Optimization_3.PSO_PCA_Optimization(2, 4)
+Optimization_3.PSO_PCA_Optimization(50, 30)
+

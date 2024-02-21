@@ -32,8 +32,8 @@ import vsp_4
 def PSO_PCA_Optimization(iteration, population):
     variance = 1e-5  # 用于控制适应度收敛准则的 方均根收敛界限
     iterations = 0  # 控制迭代的变量
-    rate = 0.5  # 用来控制初始搜索范围的系数 表示迭代一定比例后开始进行收缩
-    max_range = 0.12  # 扰动范围
+    rate = 0.2  # 用来控制初始搜索范围的系数 表示迭代一定比例后开始进行收缩
+    max_range = 0.2  # 扰动范围
     solve_mode = 0  # 求解的方式 用于控制求解函数 详细信息在 solver 和 balancing里面
     best_evaluate = np.zeros(iteration)  # 用来存储每次迭代的最优值
 

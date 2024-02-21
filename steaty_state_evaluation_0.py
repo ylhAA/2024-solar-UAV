@@ -17,11 +17,13 @@ def steady_velocity_evaluation(cl, cd):
     #          (g ** 2 * mass ** 2) + (S ** 2 * cl ** 2 * rho ** 2 * velocity ** 4) / (
     #                  4 * g ** 2 * mass ** 2) - 1)
     # 初始化迭代
+    gamma = 0  # 爬升角预设
     velocity_0 = v_ctrl  # 初始猜测值
     tolerance = 1e-4  # 精度要求
     maxIter = 100  # 最大迭代次数
     iteration = 0  # 迭代步数
     delta = 1e10  # 设置一个很大的值如果变化小于这个就停止
+    # 偷懒的方法 先假定该输入下会进行爬升
     while delta > tolerance and iteration < maxIter:
         # 计算函数值和导数
         # 使用的是12*6.5的那组
@@ -34,9 +36,17 @@ def steady_velocity_evaluation(cl, cd):
                          4 * g ** 2 * mass ** 2) - 1)
         d_fuc = (d_fuc - fuc) / tolerance
         velocity_1 = velocity_0 - fuc / d_fuc
-        delta = np.abs(velocity_1 - velocity_0)
+        delta = np.fabs(velocity_1 - velocity_0)
         iteration += 1
         velocity_0 = velocity_1
+        gamma = np.arccos(0.5 * cl * rho * S * velocity_0 ** 2 / (g * mass))
+    if 0.5 * rho * S * velocity_0 ** 2 * cd > Trust_evaluation(power, velocity_0, 2):
+        # 阻力比拉力还大这说明爬升假设有问题，其实是在俯冲
+        # 通过简单推导可以得知 方程形式不变，但角度取负值
+        gamma = - gamma
+    else:
+        pass
+
     if iteration >= maxIter:
         print('迭代未收敛\n')
         vertical_velocity = 0
@@ -49,15 +59,11 @@ def steady_velocity_evaluation(cl, cd):
     else:
         print('迭代完成，解为 v = \n', velocity_0)
         velocity = velocity_0
-        gamma = np.arccos(0.5 * cl * rho * S * velocity_0 ** 2 / (g * mass))
         vertical_velocity = velocity * np.sin(gamma)
         # 弧度制角度值转换
         gamma = np.degrees(gamma)
 
-    if vertical_velocity <= 0:
-        evaluation = 0
-    else:
-        evaluation = vertical_velocity
+    evaluation = vertical_velocity
     return evaluation, velocity_0, gamma
 
 
@@ -95,6 +101,7 @@ def Trust_evaluation(power, velocity, stage):
 # #################### 简单的demo与测试 #########################
 # #############################################################
 # 生成绘图所需的数据  用来检验拉力模型
+
 # P_values = np.linspace(50, 90, 50)
 # v_values = np.linspace(0, 10, 50)
 # tpv_values = np.zeros((50, 50))
@@ -119,7 +126,7 @@ def Trust_evaluation(power, velocity, stage):
 # plt.ylabel('Power (W)')
 # plt.title('Tpv Interpolation for 4004 12*6.5')
 # plt.show()
-
+#
 # value = Trust_evaluation(90, 10, 1)
 # print(value)
 # value = Trust_evaluation(90, 0, 1)
@@ -128,17 +135,16 @@ def Trust_evaluation(power, velocity, stage):
 # print(value)
 # value = Trust_evaluation(50, 0, 1)
 # print(value)
-
-
+#
 # aa = Trust_evaluation(78, 8, 2)
 # print(aa)
-
+#
 # # 检验上升率评估模型
 # cd_start = 0.01
 # cd_end = 0.20
 # cl_start = 0.1
 # cl_end = 1
-# num = 250
+# num = 100
 # CD_tot = np.linspace(cd_start, cd_end, num)
 # Cl_tot = np.linspace(cl_start, cl_end, num)
 # evaluate = np.zeros((num, num))
@@ -151,7 +157,6 @@ def Trust_evaluation(power, velocity, stage):
 #         velocity_record[i][j] = temp[1]
 #         gamma_record[i][j] = temp[2]
 #
-#
 # plt.imshow(evaluate, cmap='viridis', extent=[cl_start, cl_end, cd_start, cd_end], aspect='auto', origin='lower',
 #            interpolation='bicubic')
 # plt.colorbar(label='vertical velocity (m/s)')
@@ -161,8 +166,12 @@ def Trust_evaluation(power, velocity, stage):
 # plt.show()
 #
 # plt.imshow(velocity_record, cmap='viridis', extent=[cl_start, cl_end, cd_start, cd_end], aspect='auto',
-# origin='lower', interpolation='bicubic') plt.colorbar(label='velocity (m/s)') plt.xlabel('Cl') plt.ylabel('Cd')
-# plt.title('Cl and Cd search velocity for steady condition') plt.show()
+#            origin='lower', interpolation='bicubic')
+# plt.colorbar(label='velocity (m/s)')
+# plt.xlabel('Cl')
+# plt.ylabel('Cd')
+# plt.title('Cl and Cd search velocity for steady condition')
+# plt.show()
 #
 # plt.imshow(gamma_record, cmap='viridis', extent=[cl_start, cl_end, cd_start, cd_end], aspect='auto', origin='lower',
 #            interpolation='bicubic')
